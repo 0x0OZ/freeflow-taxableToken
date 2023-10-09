@@ -1,6 +1,8 @@
 # Compiler files
 cache/
 out/
+cache_hardhat/
+forge-cache/
 
 # Ignores development broadcast logs
 !/broadcast
@@ -12,3 +14,15 @@ docs/
 
 # Dotenv file
 .env
+
+node_modules
+.env
+coverage
+coverage.json
+typechain
+typechain-types
+
+# Hardhat files
+cache
+artifacts
+
