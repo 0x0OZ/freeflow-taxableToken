@@ -1,9 +1,9 @@
 import { ethers } from "hardhat";
 async function main() {
   const [deployer] = await ethers.getSigners();
-  const totalSupply = ethers.parseEther("1000000000");
-  const rewardPoolAddress = await (await ethers.provider.getSigner(2)).getAddress();
-  const developmentPoolAddress = (await (await ethers.provider.getSigner(3))).getAddress();
+  const totalSupply = 1000000000;
+  const rewardPoolAddress = deployer.getAddress();
+  const developmentPoolAddress = deployer.getAddress();
 
   const token = await ethers.deployContract("TaxableToken", [totalSupply, rewardPoolAddress, developmentPoolAddress]);
 

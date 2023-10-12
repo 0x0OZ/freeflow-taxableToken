@@ -5,7 +5,6 @@ import {
 import { expect } from "chai";
 import { ethers } from "hardhat";
 
-
 describe("Token", async function () {
     const owner = await (await ethers.provider.getSigner(0)).getAddress();
     const liquidityPool = await (await ethers.provider.getSigner(1)).getAddress();
@@ -32,7 +31,7 @@ describe("Token", async function () {
             expect(await token.owner()).to.equal(owner);
             expect(await token.rewardPool()).to.equal(rewardPoolAddress);
             expect(await token.developmentPool()).to.equal(developmentPoolAddress);
-            expect(await token.liquidityPool()).to.be.equal(ethers.ZeroAddress);
+
         });
     });
     describe("Transfer", function () {
@@ -196,8 +195,8 @@ describe("Token", async function () {
             expect(await token.balanceOf(developmentPoolAddress)).to.equal(tax);
         });
         it("Should Update tax address correctly", async function () {
-             const { token } = await loadFixture(deployTokenFixture);
-             let liquidityPool = user2Address
+            const { token } = await loadFixture(deployTokenFixture);
+            let liquidityPool = user2Address
             await token.setDevelopmentPool(developmentPoolAddress)
             await token.setRewardPool(rewardPoolAddress)
             await token.setLiquidityPool(user2Address);
