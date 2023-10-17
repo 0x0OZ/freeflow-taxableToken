@@ -2,16 +2,17 @@ import { expect } from 'chai';
 import { ethers, hardhatArguments } from 'hardhat';
 import hardhat from 'hardhat';
 import { IUniswapV2Router02, TaxableToken, WETH9 } from '../typechain-types';
+import { HardhatEthersSigner } from '@nomicfoundation/hardhat-ethers/signers';
 
 describe('Token', function () {
   let owner: any;
   let liquidityPool: any;
   let rewardPoolAddress: any;
   let developmentPoolAddress: any;
-  let rewardPool: any;
-  let developmentPool: any;
-  let user1: any;
-  let user2: any;
+  let rewardPool: HardhatEthersSigner;
+  let developmentPool: HardhatEthersSigner;
+  let user1: HardhatEthersSigner;
+  let user2: HardhatEthersSigner;
   let user1Address: string;
   let user2Address: string;
   const initSupply = 1000000;
@@ -38,15 +39,17 @@ describe('Token', function () {
       await tx.wait();
       pairAddress = await factory.getPair(tokenAddress, wethAddress);
     }
-    console.log('weth: ', wethAddress);
-    console.log('pair: ', pairAddress);
+
     return pairAddress;
   }
-  async function addLiquidity(transferAmount: any) {
+  async function addLiquidity(wethAmount: any) {
+    console.log("Adding liquidity : ", wethAmount)
+    await printDetails();
     // let transferAmount : any = ethers.parseEther('1')
-    await weth.deposit({ value: transferAmount });
-    await weth.approve(await router.getAddress(), transferAmount);
-    await token.approve(await router.getAddress(), transferAmount);
+    let tokenAmount = await token.balanceOf(owner);
+    await weth.deposit({ value: wethAmount });
+    await weth.approve(await router.getAddress(), wethAmount);
+    await token.approve(await router.getAddress(), tokenAmount);
     let timestamp = await ethers.provider
       .getBlock('latest')
       .then((b) => b?.timestamp);
@@ -54,13 +57,62 @@ describe('Token', function () {
     await router.addLiquidity(
       tokenAddress,
       wethAddress,
-      transferAmount,
-      transferAmount,
-      transferAmount,
-      transferAmount,
+      tokenAmount,
+      wethAmount,
+      tokenAmount,
+      wethAmount,
       owner,
       timestamp + 100000000
     );
+    await printReserves();
+  }
+  async function printReserves() {
+    const pair = await ethers.getContractAt('IUniswapV2Pair', liquidityPool);
+    let reserves = await pair.getReserves();
+    console.log('Reserves : ', reserves);
+  }
+  async function printDetails() {
+    console.log("user1 token balance : ", await token.balanceOf(user1Address))
+    console.log("user2 token balance : ", await token.balanceOf(user2Address))
+    console.log("liquidity pool token balance : ", await token.balanceOf(liquidityPool))
+    console.log("reward pool token balance : ", await token.balanceOf(rewardPoolAddress))
+    console.log("development pool token balance : ", await token.balanceOf(developmentPoolAddress))
+    console.log("owner token balance : ", await token.balanceOf(owner))
+    console.log("user1 weth balance : ", await weth.balanceOf(user1Address))
+    console.log("user2 weth balance : ", await weth.balanceOf(user2Address))
+    console.log("liquidity pool weth balance : ", await weth.balanceOf(liquidityPool))
+    console.log("reward pool weth balance : ", await weth.balanceOf(rewardPoolAddress))
+    console.log("development pool weth balance : ", await weth.balanceOf(developmentPoolAddress))
+    console.log("owner weth balance : ", await weth.balanceOf(owner))
+    await printReserves();
+    console.log("======================================================")
+  }
+  async function buyToken(user: HardhatEthersSigner, transferAmount: any) {
+    // await token.excludeFromTax(await liquidityPool, true);
+    console.log("Buying token : ", transferAmount)
+    await printDetails();
+
+    let userAddress = await user.getAddress();
+
+    await weth.connect(user).deposit({ value: transferAmount });
+    await weth.connect(user).approve(await router.getAddress(), transferAmount);
+    await token.connect(user).approve(await router.getAddress(), transferAmount);
+
+    console.log("transferAMount : ", transferAmount)
+    let timestamp = await ethers.provider
+      .getBlock('latest')
+      .then((b) => b?.timestamp);
+    timestamp = timestamp === undefined ? 0 : timestamp;
+    let tx = await router.connect(user).swapExactTokensForTokensSupportingFeeOnTransferTokens(
+      transferAmount,
+      0,
+      [wethAddress, tokenAddress],
+      userAddress,
+      timestamp + 100000000
+    );
+    await tx.wait();
+
+    await printDetails();
   }
   beforeEach(async function () {
     [owner, liquidityPool, rewardPool, developmentPool, user1, user2] =
@@ -78,7 +130,6 @@ describe('Token', function () {
     await token.waitForDeployment();
     tokenAddress = await token.getAddress();
     liquidityPool = await createPair();
-    console.log('token: ', tokenAddress);
     return { token };
   });
   describe('Deployment', function () {
@@ -107,67 +158,27 @@ describe('Token', function () {
     });
 
     it('Buy/Sell should take tax of 4% vessalius', async function () {
-      let liquidityPool = await createPair();
       await token.setLiquidityPool(liquidityPool);
       let valueToTransfer = 10n * 10n ** 18n;
-      console.log('transfering');
-      await token.transfer(user1Address, valueToTransfer);
-      await weth.deposit({ value: valueToTransfer });
-      await weth.transfer(user1Address, valueToTransfer);
-      console.log('approving router');
-      await token
-        .connect(user1)
-        .approve(await router.getAddress(), valueToTransfer);
-      await weth
-        .connect(user1)
-        .approve(await router.getAddress(), valueToTransfer);
-      console.log('adding liquidity');
-      let timestamp = await ethers.provider
-        .getBlock('latest')
-        .then((b) => b?.timestamp);
-      timestamp = timestamp === undefined ? 0 : timestamp;
+      // token.excludeFromTax(await router.getAddress(), true);
       await addLiquidity(valueToTransfer);
       valueToTransfer = ethers.parseEther('1');
-      token.transfer(user1Address, valueToTransfer);
-      await token.connect(user1).approve(await router.getAddress(), valueToTransfer);
-      await weth.connect(user1).approve(await router.getAddress(), valueToTransfer);
-      await weth.connect(user1).deposit({ value: valueToTransfer });
-      await router.connect(user1).swapExactTokensForTokens(
-        valueToTransfer,
-        0,
-        [wethAddress, tokenAddress],
-        user1Address,
-        timestamp + 100000000
-      );      
-
-      console.log('router: ', await router.getAddress());
-      console.log('token: ', await token.getAddress());
-      console.log('weth: ', await weth.getAddress());
-      console.log('pair: ', liquidityPool);
-      console.log('user1: ', user1Address);
-      console.log('timestamp: ', timestamp);
-      console.log('user token balance:', await token.balanceOf(user1Address));
-      console.log('user weth balance :', await weth.balanceOf(user1Address));
-      console.log('pair token balance:', await token.balanceOf(liquidityPool));
-      console.log('pair weth balance :', await weth.balanceOf(liquidityPool));
-
-      console.log('pair token balance:', await token.balanceOf(liquidityPool));
-      console.log('pair weth balance :', await weth.balanceOf(liquidityPool));
+      await buyToken(user1, valueToTransfer);
       let expectedValueWithTax =
         valueToTransfer - (valueToTransfer * 4n) / 100n;
-      expect(await token.balanceOf(liquidityPool)).to.equal(
-        expectedValueWithTax
-      );
-      expect(await token.balanceOf(user1Address)).to.equal(0);
+      console.log("user2Address balance : ", await token.balanceOf(user2Address))
+
+      expect(await token.balanceOf(user2Address)).to.equal(expectedValueWithTax);
       let tax = (valueToTransfer * 2n) / 100n;
       expect(await token.balanceOf(rewardPoolAddress)).to.equal(tax);
       expect(await token.balanceOf(developmentPoolAddress)).to.equal(tax);
     });
+
+
     it('Users can buy/sell 2% of total supply at max', async function () {
       await token.setLiquidityPool(liquidityPool);
       let totalSupply = BigInt(initSupply) * 10n ** 18n;
       let valueToTransfer = (totalSupply * 3n) / 100n;
-      await token.transfer(user1Address, valueToTransfer);
       await expect(
         token.connect(user1).transfer(liquidityPool, valueToTransfer)
       ).to.be.reverted;

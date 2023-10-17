@@ -60,6 +60,10 @@ const config: HardhatUserConfig = {
       url: goerli_rpc,
       accounts: [private_key],
     },
+    localhost:{
+      url: "http://127.0.0.1:8545",
+      accounts: private_keys,
+    }
   },
   etherscan: {
     apiKey: {
@@ -67,6 +71,7 @@ const config: HardhatUserConfig = {
       goerli: etherscan_apikey,
     },
   },
+  
   preprocess: {
     eachLine: (hre) => ({
       transform: (line: string) => {

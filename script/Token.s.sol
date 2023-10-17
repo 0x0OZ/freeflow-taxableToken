@@ -4,8 +4,8 @@ pragma solidity ^0.8.18;
 import "../src/Token.sol";
 import "forge-std/Script.sol";
 
-import "./interfaces/IUniswapV2Router02.sol";
-import "./interfaces/IUniswapV2Factory.sol";
+// import "./interfaces/IUniswapV2Router02.sol";
+// import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IUniswapV2Pair.sol";
 import "./interfaces/weth.sol";
 
@@ -26,7 +26,6 @@ contract TokenScript is Script {
         developmentPool = address(0x11111111111);
         user = address(0x222222222222);
         vm.prank(owner);
-        console.log("token address: ");
         token = new TaxableToken(100_000_0000, rewardPool, developmentPool);
         factory = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
         router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
@@ -46,11 +45,29 @@ contract TokenScript is Script {
         console.log("==========================================================\n");
     }
 
+    function buyToken(address to, uint256 amountIn) public {
+        vm.deal(to, amountIn);
+        WETH.deposit{value: amountIn}();
+        WETH.approve(address(router), amountIn);
+        uint256 amountOutMin = 0;
+        address[] memory path = new address[](2);
+        path[0] = weth;
+        path[1] = address(token);
+        uint256 deadline = block.timestamp + 10000000;
+        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(amountIn, amountOutMin, path, to, deadline);
+        (uint256 reserveA, uint256 reserveB,) = pair.getReserves();
+        console.log("reserves: ", reserveA, reserveB);
+    }
+
     function run() public {
         console.log("is owner excludedfrom tax?: ", token.isExcludedFromTax(owner));
         print();
         vm.startPrank(owner);
-        pair = IUniswapV2Pair(factory.createPair(address(token), weth));
+        // pair = IUniswapV2Pair(factory.createPair(address(token), weth));
+        pair = IUniswapV2Pair(token.liquidityPool());
+        console.log("current liquidity pool: ", token.liquidityPool());
+        console.log("created liquidity pool: ", address(pair));
+
         vm.deal(owner, 1e9 * 1e18);
         WETH.deposit{value: 1e9 * 1e18}();
         WETH.approve(address(router), 1e64);
@@ -66,7 +83,8 @@ contract TokenScript is Script {
         router.addLiquidity(address(token), weth, amountADesired, amountBDesired, amountAMin, amountBMin, to, deadline);
         (reserveA, reserveB,) = pair.getReserves();
         console.log("reserves: ", reserveA, reserveB);
-        token.setLiquidityPool(address(pair));
+
+        // token.setLiquidityPool(address(pair));
         token.transfer(user, 100000 * 10e18);
         WETH.transfer(user, 100000 * 10e18);
         vm.stopPrank();
@@ -81,11 +99,13 @@ contract TokenScript is Script {
         path[1] = address(token);
         to = user;
         deadline = block.timestamp + 10000000;
-        router.swapExactTokensForTokens(amountIn, amountOutMin, path, to, deadline);
+        console.log("SWAPPING");
+        console.log("router address: %s", address(router));
+
+        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(amountIn, amountOutMin, path, to, deadline);
+        console.log("SWAPPED");
         (reserveA, reserveB,) = pair.getReserves();
         console.log("reserves: ", reserveA, reserveB);
-        // ALways fails, I don't know why?
-        // Sell 
         amountIn = (100000 / 2) * 1e18;
         token.approve(address(router), amountIn);
         amountOutMin = 0;
@@ -93,7 +113,7 @@ contract TokenScript is Script {
         path[1] = weth;
         to = user;
         deadline = block.timestamp + 10000000;
-        router.swapExactTokensForTokens(amountIn, amountOutMin, path, to, deadline);
+        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(amountIn, amountOutMin, path, to, deadline);
         // router.swapSin
         vm.stopPrank();
         (reserveA, reserveB,) = pair.getReserves();
