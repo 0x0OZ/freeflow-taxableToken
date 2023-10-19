@@ -39,9 +39,8 @@ contract TokenScript is Script {
         console.log("balance of rewardPool", token.balanceOf(rewardPool));
         console.log("balance of developmentPool", token.balanceOf(developmentPool));
         console.log("total supply", token.totalSupply());
-        console.log("tax percentage", token.taxPercentage());
-        console.log("max tx amount", token.maxTxAmount());
-        console.log("liquidity pool", token.liquidityPool());
+        console.log("tax percentage", token.getTaxPercentage());
+        console.log("max tx amount", token.getMaxTxAmount());
         console.log("==========================================================\n");
     }
 
@@ -60,12 +59,10 @@ contract TokenScript is Script {
     }
 
     function run() public {
-        console.log("is owner excludedfrom tax?: ", token.isExcludedFromTax(owner));
+        console.log("is owner excludedfrom tax?: ", token.isUserExcludedFromTax(owner));
         print();
         vm.startPrank(owner);
-        // pair = IUniswapV2Pair(factory.createPair(address(token), weth));
-        pair = IUniswapV2Pair(token.liquidityPool());
-        console.log("current liquidity pool: ", token.liquidityPool());
+        pair = IUniswapV2Pair(factory.getPair(address(token), weth));
         console.log("created liquidity pool: ", address(pair));
 
         vm.deal(owner, 1e9 * 1e18);
