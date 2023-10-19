@@ -12,23 +12,23 @@ import "./interfaces/IUniswapV2Factory.sol";
 import "./interfaces/IUniswapV2Router02.sol";
 
 contract TaxableToken is ERC20, Ownable {
-    IUniswapV2Router02 constant router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+    IUniswapV2Router02 internal constant router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
 
     // tax will be taken if luqidty pool is involved in the transfer
-    address public immutable liquidityPool;
+    address internal immutable liquidityPool;
 
     // Addresses for the reward and development pools.
-    address public rewardPool;
-    address public developmentPool;
+    address internal rewardPool;
+    address internal developmentPool;
 
     // Tax percentage on buy/sell transactions.
-    uint256 public taxPercentage = 4;
+    uint256 internal taxPercentage = 4;
 
     // Maximum amount for buy/sell transactions.
-    uint256 public maxTxAmount;
+    uint256 internal maxTxAmount;
 
     // mapping of addresses that are excluded from tax
-    mapping(address => bool) public isExcludedFromTax;
+    mapping(address => bool) internal isExcludedFromTax;
 
     event taxPercentageUpdated(uint256 newTaxPercentage);
     event maxTxAmountUpdated(uint256 newMaxTxAmount);
@@ -69,28 +69,6 @@ contract TaxableToken is ERC20, Ownable {
         isExcludedFromTax[address(this)] = true;
 
         _approve(address(this), address(router), type(uint256).max);
-    }
-
-    /// @notice Overrides the _update function of ERC20 to include tax and maxTxAmount logic.
-    /// @param from The address of the sender.
-    /// @param to The address of the recipient.
-    /// @param amount The amount of tokens to transfer.
-    function _update(address from, address to, uint256 amount) internal override {
-        if (from != liquidityPool && to != liquidityPool) {
-            super._update(from, to, amount);
-        } else {
-            if (!isExcludedFromTax[from] && !isExcludedFromTax[to]) {
-                if (amount > maxTxAmount) revert TransferAmountExceedsMaxTxAmount();
-                uint256 taxAmount = calculateTax(amount);
-                unchecked {
-                    super._update(from, to, amount - taxAmount);
-                    super._update(from, rewardPool, taxAmount / 2);
-                    super._update(from, developmentPool, taxAmount / 2);
-                }
-            } else {
-                super._update(from, to, amount);
-            }
-        }
     }
 
     /// @notice Calculates the tax amount based on the tax percentage.
@@ -147,5 +125,46 @@ contract TaxableToken is ERC20, Ownable {
         isExcludedFromTax[owner()] = false;
         isExcludedFromTax[newOwner] = true;
         super.transferOwnership(newOwner);
+    }
+
+    /// @notice Overrides the _update function of ERC20 to include tax and maxTxAmount logic.
+    /// @param from The address of the sender.
+    /// @param to The address of the recipient.
+    /// @param amount The amount of tokens to transfer.
+    function _update(address from, address to, uint256 amount) internal override {
+        if (from != liquidityPool && to != liquidityPool) {
+            super._update(from, to, amount);
+        } else {
+            if (!isExcludedFromTax[from] && !isExcludedFromTax[to]) {
+                if (amount > maxTxAmount) revert TransferAmountExceedsMaxTxAmount();
+                uint256 taxAmount = calculateTax(amount);
+                unchecked {
+                    super._update(from, to, amount - taxAmount);
+                    super._update(from, rewardPool, taxAmount / 2);
+                    super._update(from, developmentPool, taxAmount / 2);
+                }
+            } else {
+                super._update(from, to, amount);
+            }
+        }
+    }
+
+    /// @notice return if a user is excluded from tax.
+    /// @param account The address to check if excluded.
+    /// @return true of user is excluded from tax, false otherwise.
+    function isUserExcludedFromTax(address account) public view returns (bool) {
+        return isExcludedFromTax[account];
+    }
+
+    /// @notice return the tax percentage.
+    /// @return the tax percentage.
+    function getTaxPercentage() public view returns (uint256) {
+        return taxPercentage;
+    }
+
+    /// @notice return the max transaction amount
+    /// @return the max transaction amount
+    function getMaxTxAmount() public view returns (uint256) {
+        return maxTxAmount;
     }
 }
