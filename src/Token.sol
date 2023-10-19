@@ -68,7 +68,6 @@ contract TaxableToken is ERC20, Ownable {
         isExcludedFromTax[msg.sender] = true;
         isExcludedFromTax[address(this)] = true;
 
-        _approve(address(this), address(router), type(uint256).max);
     }
 
     /// @notice Calculates the tax amount based on the tax percentage.
