@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.21;
 
 // 4% buy/sell tax (half goes to onewallet, half to another)
 // max buy/sell of 2% total supply
@@ -13,8 +13,6 @@ import "./interfaces/IUniswapV2Router02.sol";
 
 contract TaxableToken is ERC20, Ownable {
     IUniswapV2Router02 constant router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
-
-    uint256 constant MINIMUM_SWAP = 1000 * 10 ** 18;
 
     // tax will be taken if luqidty pool is involved in the transfer
     address public immutable liquidityPool;
@@ -53,20 +51,6 @@ contract TaxableToken is ERC20, Ownable {
         address weth = router.WETH();
         address token0 = address(this) < weth ? address(this) : weth;
         address token1 = token0 == address(this) ? weth : address(this);
-        // liquidityPool = address(
-        //     uint160(
-        //         uint256(
-        //             keccak256(
-        //                 abi.encodePacked(
-        //                     hex"ff",
-        //                     address(factory),
-        //                     keccak256(abi.encodePacked(token0, token1)),
-        //                     hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
-        //                 )
-        //             )
-        //         )
-        //     )
-        // );
         liquidityPool = factory.createPair(token0, token1);
 
         // Minting initial total supply to the contract deployer.
@@ -100,10 +84,8 @@ contract TaxableToken is ERC20, Ownable {
                 uint256 taxAmount = calculateTax(amount);
                 unchecked {
                     super._update(from, to, amount - taxAmount);
-                    super._update(from, address(this), taxAmount);
-
-                    // super._update(from, rewardPool, taxAmount / 2);
-                    // super._update(from, developmentPool, taxAmount / 2);
+                    super._update(from, rewardPool, taxAmount / 2);
+                    super._update(from, developmentPool, taxAmount / 2);
                 }
             } else {
                 super._update(from, to, amount);
@@ -150,13 +132,6 @@ contract TaxableToken is ERC20, Ownable {
         developmentPool = newDevelopmentPool;
         emit developmentPoolUpdated(newDevelopmentPool);
     }
-
-    // /// @notice Changes the liquidityPool address, only callable by the contract owner.
-    // /// @param newLiquidityPool The new address for the liquidityPool.
-    // function setLiquidityPool(address newLiquidityPool) external onlyOwner {
-    //     liquidityPool = newLiquidityPool;
-    //     emit liquidityPoolUpdated(newLiquidityPool);
-    // }
 
     /// @notice Changes the excluded addresses, only callable by the contract owner.
     /// @param account The address to be excluded.

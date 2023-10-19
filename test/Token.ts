@@ -158,7 +158,6 @@ describe('Token', function () {
     });
 
     it('Buy/Sell should take tax of 4% vessalius', async function () {
-      await token.setLiquidityPool(liquidityPool);
       let valueToTransfer = 10n * 10n ** 18n;
       // token.excludeFromTax(await router.getAddress(), true);
       await addLiquidity(valueToTransfer);
@@ -176,7 +175,6 @@ describe('Token', function () {
 
 
     it('Users can buy/sell 2% of total supply at max', async function () {
-      await token.setLiquidityPool(liquidityPool);
       let totalSupply = BigInt(initSupply) * 10n ** 18n;
       let valueToTransfer = (totalSupply * 3n) / 100n;
       await expect(
@@ -189,7 +187,6 @@ describe('Token', function () {
       ).to.be.not.reverted;
     });
     it('Owner and tax address should be excluded from tax', async function () {
-      await token.setLiquidityPool(liquidityPool);
       let totalSupply = BigInt(initSupply) * 10n ** 18n;
       let valueToTransfer = (totalSupply * 2n) / 100n;
       await token.transfer(rewardPoolAddress, valueToTransfer);
@@ -231,7 +228,6 @@ describe('Token', function () {
     });
 
     it('Buy/Sell should take tax of 4%', async function () {
-      await token.setLiquidityPool(liquidityPool);
       let valueToTransfer = 100n * 10n ** 18n;
       await token.transfer(user1Address, valueToTransfer);
       await token.connect(user1).approve(user2Address, valueToTransfer);
@@ -250,7 +246,6 @@ describe('Token', function () {
     });
 
     it('Users can buy/sell 2% of total supply at max', async function () {
-      await token.setLiquidityPool(liquidityPool);
       let totalSupply = BigInt(initSupply) * 10n ** 18n;
       let valueToTransfer = (totalSupply * 3n) / 100n;
       await token.transfer(user1Address, valueToTransfer);
@@ -270,7 +265,6 @@ describe('Token', function () {
     });
 
     it('Owner and tax address should be excluded from tax', async function () {
-      await token.setLiquidityPool(liquidityPool);
       let totalSupply = BigInt(initSupply) * 10n ** 18n;
       let valueToTransfer = (totalSupply * 2n) / 100n;
       await token.transfer(rewardPoolAddress, valueToTransfer);
@@ -298,7 +292,6 @@ describe('Token', function () {
   });
   describe('Tax', function () {
     it('Tax should be 4%', async function () {
-      await token.setLiquidityPool(liquidityPool);
       let valueToTransfer = 100n * 10n ** 18n;
       await token.transfer(user1Address, valueToTransfer);
       await token.connect(user1).transfer(liquidityPool, valueToTransfer);
@@ -314,7 +307,6 @@ describe('Token', function () {
     });
 
     it('Should Update tax percentage correctly', async function () {
-      await token.setLiquidityPool(liquidityPool);
       await token.setTaxPercentage(8);
       let valueToTransfer = 100n * 10n ** 18n;
       await token.transfer(user1Address, valueToTransfer);
@@ -333,7 +325,6 @@ describe('Token', function () {
       let liquidityPool = user2Address;
       await token.setDevelopmentPool(developmentPoolAddress);
       await token.setRewardPool(rewardPoolAddress);
-      await token.setLiquidityPool(user2Address);
       let valueToTransfer = 100n * 10n ** 18n;
       await token.transfer(user1Address, valueToTransfer);
       await token.connect(user1).transfer(user2Address, valueToTransfer);
@@ -348,7 +339,6 @@ describe('Token', function () {
       expect(await token.balanceOf(developmentPoolAddress)).to.equal(tax);
 
       liquidityPool = user1Address;
-      await token.setLiquidityPool(liquidityPool);
       valueToTransfer = 100n * 10n ** 18n;
       await token.transfer(user2Address, valueToTransfer);
       await token.connect(user2).transfer(liquidityPool, valueToTransfer);
