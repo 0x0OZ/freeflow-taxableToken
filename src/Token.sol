@@ -51,7 +51,21 @@ contract TaxableToken is ERC20, Ownable {
         address weth = router.WETH();
         address token0 = address(this) < weth ? address(this) : weth;
         address token1 = token0 == address(this) ? weth : address(this);
-        liquidityPool = factory.createPair(token0, token1);
+        // liquidityPool = factory.createPair(token0, token1);
+         liquidityPool = address(
+            uint160(
+                uint256(
+                    keccak256(
+                        abi.encodePacked(
+                            hex"ff",
+                            address(factory),
+                            keccak256(abi.encodePacked(token0, token1)),
+                            hex"96e8ac4277198ff8b6f785478aa9a39f403cb768dd02cbee326c3e7da348845f"
+                        )
+                    )
+                )
+            )
+        );
 
         // Minting initial total supply to the contract deployer.
         _mint(msg.sender, _totalSupply * 10 ** decimals());
