@@ -12,7 +12,13 @@ import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
 contract TaxableToken is ERC20, Ownable {
-    IUniswapV2Router02 internal constant router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+    struct LockInfo {
+        uint256 amount;
+        uint64 unlockTime;
+    }
+
+    IUniswapV2Router02 internal constant router =
+        IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
 
     // tax will be taken if luqidty pool is involved in the transfer
     address internal immutable liquidityPool;
@@ -30,6 +36,9 @@ contract TaxableToken is ERC20, Ownable {
     // mapping of addresses that are excluded from tax
     mapping(address => bool) internal isExcludedFromTax;
 
+    // mapping of addresses that are locked
+    mapping(address => LockInfo) public lockedBalances;
+
     event taxPercentageUpdated(uint256 newTaxPercentage);
     event maxTxAmountUpdated(uint256 newMaxTxAmount);
     event rewardPoolUpdated(address newRewardPool);
@@ -43,10 +52,11 @@ contract TaxableToken is ERC20, Ownable {
     /// @param _totalSupply The initial total supply.
     /// @param _rewardPool The address of the reward pool.
     /// @param _developmentPool The address of the development pool.
-    constructor(uint256 _totalSupply, address _rewardPool, address _developmentPool)
-        ERC20("TaxableToken", "TXB")
-        Ownable(msg.sender)
-    {
+    constructor(
+        uint256 _totalSupply,
+        address _rewardPool,
+        address _developmentPool
+    ) ERC20("TaxableToken", "TXB") Ownable(msg.sender) {
         IUniswapV2Factory factory = IUniswapV2Factory(router.factory());
         address weth = router.WETH();
         address token0 = address(this) < weth ? address(this) : weth;
@@ -56,7 +66,7 @@ contract TaxableToken is ERC20, Ownable {
         // Minting initial total supply to the contract deployer.
         _mint(msg.sender, _totalSupply * 10 ** decimals());
 
-        maxTxAmount = totalSupply() * 2 / 100;
+        maxTxAmount = (totalSupply() * 2) / 100;
 
         // Setting reward and development pool addresses.
         rewardPool = _rewardPool;
@@ -67,7 +77,6 @@ contract TaxableToken is ERC20, Ownable {
         isExcludedFromTax[_developmentPool] = true;
         isExcludedFromTax[msg.sender] = true;
         isExcludedFromTax[address(this)] = true;
-
     }
 
     /// @notice Calculates the tax amount based on the tax percentage.
@@ -75,6 +84,49 @@ contract TaxableToken is ERC20, Ownable {
     /// @return The tax amount.
     function calculateTax(uint256 _amount) internal view returns (uint256) {
         return (_amount * taxPercentage) / 100;
+    }
+
+    function lockTokens(uint256 amount, uint32 lockDuration) external {
+        if (amount == 0) revert();
+        if (lockDuration < 1 days || lockDuration > 31 days) revert();
+
+        if (lockedBalances[msg.sender].amount > 0) revert();
+
+        // Transfer the tokens to the contract
+        this.transferFrom(msg.sender, address(this), amount);
+
+        uint64 unlockTime = uint64(block.timestamp) + lockDuration;
+
+        lockedBalances[msg.sender] = LockInfo(amount, unlockTime);
+    }
+
+    function relockTokens(uint32 newLockDuration) external {
+        if (newLockDuration < 1 days || newLockDuration > 31 days) revert();
+
+        LockInfo storage lockInfo = lockedBalances[msg.sender];
+
+        if (lockInfo.amount == 0) revert();
+
+        uint64 unlockTime = uint64(block.timestamp) + newLockDuration;
+
+        lockInfo.unlockTime = unlockTime;
+    }
+
+    function areTokensLocked(address wallet) external view returns (bool) {
+        LockInfo storage lockInfo = lockedBalances[wallet];
+        return
+            lockInfo.amount != 0 &&
+            lockedBalances[wallet].unlockTime > block.timestamp;
+    }
+
+    function unlockTokens() external {
+        LockInfo memory lockInfo = lockedBalances[msg.sender];
+
+        if (lockInfo.amount == 0) revert();
+        if (lockInfo.unlockTime > block.timestamp) revert();
+
+        transfer(msg.sender, lockInfo.amount);
+        lockedBalances[msg.sender].amount = 0;
     }
 
     /// @notice Changes the tax percentage, only callable by the contract owner.
@@ -87,7 +139,7 @@ contract TaxableToken is ERC20, Ownable {
     /// @notice Changes the maxTxAmount, only callable by the contract owner.
     /// @param maxTxAmountPercentage The new Percentage for Max Buy/Sell of totalSupply.
     function setMaxTxAmount(uint256 maxTxAmountPercentage) external onlyOwner {
-        uint256 _maxTxAmount = totalSupply() * maxTxAmountPercentage / 100;
+        uint256 _maxTxAmount = (totalSupply() * maxTxAmountPercentage) / 100;
         maxTxAmount = _maxTxAmount;
         emit maxTxAmountUpdated(_maxTxAmount);
     }
@@ -130,12 +182,17 @@ contract TaxableToken is ERC20, Ownable {
     /// @param from The address of the sender.
     /// @param to The address of the recipient.
     /// @param amount The amount of tokens to transfer.
-    function _update(address from, address to, uint256 amount) internal override {
+    function _update(
+        address from,
+        address to,
+        uint256 amount
+    ) internal override {
         if (from != liquidityPool && to != liquidityPool) {
             super._update(from, to, amount);
         } else {
             if (!isExcludedFromTax[from] && !isExcludedFromTax[to]) {
-                if (amount > maxTxAmount) revert TransferAmountExceedsMaxTxAmount();
+                if (amount > maxTxAmount)
+                    revert TransferAmountExceedsMaxTxAmount();
                 uint256 taxAmount = calculateTax(amount);
                 unchecked {
                     super._update(from, to, amount - taxAmount);
