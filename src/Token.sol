@@ -36,14 +36,10 @@ contract TaxableToken is ERC20, Ownable {
     // mapping of addresses that are excluded from tax
     mapping(address => bool) internal isExcludedFromTax;
 
-    // mapping of addresses that are locked
-    mapping(address => LockInfo) public lockedBalances;
-
+    event developmentPoolUpdated(address newDevelopmentPool);
     event taxPercentageUpdated(uint256 newTaxPercentage);
     event maxTxAmountUpdated(uint256 newMaxTxAmount);
     event rewardPoolUpdated(address newRewardPool);
-    event developmentPoolUpdated(address newDevelopmentPool);
-    event liquidityPoolUpdated(address newLiquidityPool);
     event ExcludeFromTax(address account, bool exclude);
 
     error TransferAmountExceedsMaxTxAmount();
@@ -77,56 +73,6 @@ contract TaxableToken is ERC20, Ownable {
         isExcludedFromTax[_developmentPool] = true;
         isExcludedFromTax[msg.sender] = true;
         isExcludedFromTax[address(this)] = true;
-    }
-
-    /// @notice Calculates the tax amount based on the tax percentage.
-    /// @param _amount The amount to calculate tax on.
-    /// @return The tax amount.
-    function calculateTax(uint256 _amount) internal view returns (uint256) {
-        return (_amount * taxPercentage) / 100;
-    }
-
-    function lockTokens(uint256 amount, uint32 lockDuration) external {
-        if (amount == 0) revert();
-        if (lockDuration < 1 days || lockDuration > 31 days) revert();
-
-        if (lockedBalances[msg.sender].amount > 0) revert();
-
-        // Transfer the tokens to the contract
-        this.transferFrom(msg.sender, address(this), amount);
-
-        uint64 unlockTime = uint64(block.timestamp) + lockDuration;
-
-        lockedBalances[msg.sender] = LockInfo(amount, unlockTime);
-    }
-
-    function relockTokens(uint32 newLockDuration) external {
-        if (newLockDuration < 1 days || newLockDuration > 31 days) revert();
-
-        LockInfo storage lockInfo = lockedBalances[msg.sender];
-
-        if (lockInfo.amount == 0) revert();
-
-        uint64 unlockTime = uint64(block.timestamp) + newLockDuration;
-
-        lockInfo.unlockTime = unlockTime;
-    }
-
-    function areTokensLocked(address wallet) external view returns (bool) {
-        LockInfo storage lockInfo = lockedBalances[wallet];
-        return
-            lockInfo.amount != 0 &&
-            lockedBalances[wallet].unlockTime > block.timestamp;
-    }
-
-    function unlockTokens() external {
-        LockInfo memory lockInfo = lockedBalances[msg.sender];
-
-        if (lockInfo.amount == 0) revert();
-        if (lockInfo.unlockTime > block.timestamp) revert();
-
-        transfer(msg.sender, lockInfo.amount);
-        lockedBalances[msg.sender].amount = 0;
     }
 
     /// @notice Changes the tax percentage, only callable by the contract owner.
@@ -170,6 +116,27 @@ contract TaxableToken is ERC20, Ownable {
         emit ExcludeFromTax(account, exclude);
     }
 
+    /// @notice return if a user is excluded from tax.
+    /// @param account The address to check if excluded.
+    /// @return true of user is excluded from tax, false otherwise.
+    function isUserExcludedFromTax(
+        address account
+    ) external view returns (bool) {
+        return isExcludedFromTax[account];
+    }
+
+    /// @notice return the tax percentage.
+    /// @return the tax percentage.
+    function getTaxPercentage() external view returns (uint256) {
+        return taxPercentage;
+    }
+
+    /// @notice return the max transaction amount
+    /// @return the max transaction amount
+    function getMaxTxAmount() external view returns (uint256) {
+        return maxTxAmount;
+    }
+
     /// @notice Overrides the transferOwnership function of Owned to include tax addresses.
     /// @param newOwner The address of the new owner.
     function transferOwnership(address newOwner) public override {
@@ -177,6 +144,7 @@ contract TaxableToken is ERC20, Ownable {
         isExcludedFromTax[newOwner] = true;
         super.transferOwnership(newOwner);
     }
+
 
     /// @notice Overrides the _update function of ERC20 to include tax and maxTxAmount logic.
     /// @param from The address of the sender.
@@ -193,7 +161,8 @@ contract TaxableToken is ERC20, Ownable {
             if (!isExcludedFromTax[from] && !isExcludedFromTax[to]) {
                 if (amount > maxTxAmount)
                     revert TransferAmountExceedsMaxTxAmount();
-                uint256 taxAmount = calculateTax(amount);
+                    
+                uint256 taxAmount = (amount * taxPercentage) / 100;
                 unchecked {
                     super._update(from, to, amount - taxAmount);
                     super._update(from, rewardPool, taxAmount / 2);
@@ -203,24 +172,5 @@ contract TaxableToken is ERC20, Ownable {
                 super._update(from, to, amount);
             }
         }
-    }
-
-    /// @notice return if a user is excluded from tax.
-    /// @param account The address to check if excluded.
-    /// @return true of user is excluded from tax, false otherwise.
-    function isUserExcludedFromTax(address account) public view returns (bool) {
-        return isExcludedFromTax[account];
-    }
-
-    /// @notice return the tax percentage.
-    /// @return the tax percentage.
-    function getTaxPercentage() public view returns (uint256) {
-        return taxPercentage;
-    }
-
-    /// @notice return the max transaction amount
-    /// @return the max transaction amount
-    function getMaxTxAmount() public view returns (uint256) {
-        return maxTxAmount;
     }
 }

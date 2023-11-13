@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.0;
+pragma solidity ^0.8.21;
 
 interface IERC20 {
     function transferFrom(
@@ -16,7 +16,7 @@ interface IERC20 {
 
 contract TokenLockContract {
     address internal owner;
-    IERC20 internal immutable tokenContract;
+    IERC20 internal tokenContract;
 
     struct LockInfo {
         uint256 amount;
@@ -32,25 +32,31 @@ contract TokenLockContract {
 
     error lockDurationOutOfRange();
     error UnauthorizedAccount();
-    error InvalidAmount();
+    error InvalidLockAmount();
     error tokensStillLocked();
     error noLockedTokens();
 
-    // modifier onlyOwner() {
-    //     if (msg.sender != owner) {
-    //         revert UnauthorizedAccount();
-    //     }
-    //     _;
-    // }
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert UnauthorizedAccount();
+        }
+        _;
+    }
 
+    /// @notice Locks tokens for a specified duration
+    /// @param amount The amount of tokens to lock
+    /// @param lockDuration The duration to lock the tokens for
+    /// @dev The lock duration must be between 1 and 31 days
+    /// @dev The amount of tokens must be greater than 0
+    /// @dev The user must not have any tokens locked already
+    /// @dev The user must have approved the contract to transfer the tokens
     function lockTokens(uint256 amount, uint64 lockDuration) external {
-        if (amount == 0) revert lockDurationOutOfRange();
+        if (amount == 0) revert InvalidLockAmount();
+
         if (lockDuration < 1 days || lockDuration > 31 days)
             revert lockDurationOutOfRange();
 
-        LockInfo storage lockInfo = lockedBalances[msg.sender];
-
-        if (lockInfo.amount > 0) revert lockDurationOutOfRange();
+        if (lockedBalances[msg.sender].amount > 0) revert tokensStillLocked();
 
         // assumed that the tokenContract follows the the EIP specs
         tokenContract.transferFrom(msg.sender, address(this), amount);
@@ -60,40 +66,81 @@ contract TokenLockContract {
         lockedBalances[msg.sender] = LockInfo(amount, unlockTime);
     }
 
-    function reLockTokens(uint64 newLockDuration) external {
+    // check if new tokens are < from existing locked tokens then take that amount from the user
+    // check if the new tokens are > from the existing locked tokens then send that amount to the user
+    // if the new amount locked amount and the current locked amount are equal don't do any of the above
+
+    // do the checks on lock durations that are done on the lock
+    /// @notice Locks tokens for a specified duration
+    /// @param newLockAmount The amount of tokens to lock
+    /// @param newLockDuration The duration to lock the tokens for
+    /// @dev The lock duration must be between 1 and 31 days
+    /// @dev The amount of tokens must be greater than 0
+    /// @dev The user must have tokens locked already
+    /// @dev The user must have approved the contract to transfer the tokens
+    /// @dev If the new lock amount is greater than the current lock amount, the difference will be transferred from the user to the contract
+    /// @dev If the new lock amount is less than the current lock amount, the difference will be transferred from the contract to the user
+    function reLockTokens(uint newLockAmount, uint64 newLockDuration) external {
         if (newLockDuration < 1 days || newLockDuration > 31 days)
             revert lockDurationOutOfRange();
 
-        LockInfo storage lockInfo = lockedBalances[msg.sender];
+        LockInfo memory lockInfo = lockedBalances[msg.sender];
 
-        if (lockInfo.amount == 0) revert noLockedTokens();
-
-        lockInfo.unlockTime = uint64(block.timestamp) + newLockDuration;
-    }
-
-    function withdraw() external {
-        LockInfo storage lockInfo = lockedBalances[msg.sender];
-
-        if (block.timestamp < lockInfo.unlockTime) {
-            revert tokensStillLocked();
+        if (newLockAmount > lockInfo.amount) {
+            unchecked {
+                uint transferAmount = newLockAmount - lockInfo.amount;
+                tokenContract.transferFrom(
+                    msg.sender,
+                    address(this),
+                    transferAmount
+                );
+            }
+        } else if (newLockAmount < lockInfo.amount) {
+            unchecked {
+                uint transferAmount = lockInfo.amount - newLockAmount;
+                tokenContract.transfer(msg.sender, transferAmount);
+            }
         }
 
-        uint256 amount = lockInfo.amount;
-        lockInfo.amount = 0;
-        lockInfo.unlockTime = 0;
-
-        tokenContract.transfer(msg.sender, amount);
+        lockedBalances[msg.sender] = LockInfo(
+            newLockAmount,
+            uint64(block.timestamp) + newLockDuration
+        );
     }
 
+    /// @notice Withdraws tokens that have been unlocked
+    /// @dev The user must have tokens locked already
+    /// @dev The unlock time must be less than the current block timestamp
+    function withdraw() external {
+        LockInfo memory lockInfo = lockedBalances[msg.sender];
+
+        if (block.timestamp < lockInfo.unlockTime) revert tokensStillLocked();
+
+        delete lockedBalances[msg.sender];
+
+        tokenContract.transfer(msg.sender, lockInfo.amount);
+    }
+
+    /// @notice Changes the token contract
+    /// @param newToken The address of the new token contract
+    /// @dev Only the owner can call this function
+    function changeToken(address newToken) external onlyOwner {
+        tokenContract = IERC20(newToken);
+    }
+
+    /// @notice Returns whether or not the user has tokens locked
+    /// @param wallet The address of the user
+    /// @return true if the user has tokens locked, false otherwise
     function areTokensLocked(address wallet) external view returns (bool) {
         LockInfo storage lockInfo = lockedBalances[wallet];
 
         return lockInfo.amount != 0 && lockInfo.unlockTime > block.timestamp;
     }
 
-    // function transferOwnership(address _newOwner) external onlyOwner {
-    //     owner = _newOwner;
-    // }
+    /// @notice changes the owner address
+    /// @param _newOwner The address of the new owner
+    /// @dev Only the owner can call this function
+    function transferOwnership(address _newOwner) external onlyOwner {
+        owner = _newOwner;
+    }
 }
-
-
