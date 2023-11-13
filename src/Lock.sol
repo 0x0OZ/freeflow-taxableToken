@@ -34,7 +34,7 @@ contract TokenLockContract {
     error UnauthorizedAccount();
     error InvalidLockAmount();
     error tokensStillLocked();
-    error noLockedTokens();
+    error TokensAlreadyLocked();
 
     modifier onlyOwner() {
         if (msg.sender != owner) {
@@ -56,7 +56,7 @@ contract TokenLockContract {
         if (lockDuration < 1 days || lockDuration > 31 days)
             revert lockDurationOutOfRange();
 
-        if (lockedBalances[msg.sender].amount > 0) revert tokensStillLocked();
+        if (lockedBalances[msg.sender].amount > 0) revert TokensAlreadyLocked();
 
         // assumed that the tokenContract follows the the EIP specs
         tokenContract.transferFrom(msg.sender, address(this), amount);
