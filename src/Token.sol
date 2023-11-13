@@ -7,11 +7,10 @@ pragma solidity ^0.8.21;
 // owner address and tax addresses should be excluded from tax
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@openzeppelin/contracts/access/Ownable.sol";
 import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
 import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
 
-contract TaxableToken is ERC20, Ownable {
+contract TaxableToken is ERC20 {
     struct LockInfo {
         uint256 amount;
         uint64 unlockTime;
@@ -33,6 +32,8 @@ contract TaxableToken is ERC20, Ownable {
     // Maximum amount for buy/sell transactions.
     uint256 internal maxTxAmount;
 
+    address internal owner;
+
     // mapping of addresses that are excluded from tax
     mapping(address => bool) internal isExcludedFromTax;
 
@@ -43,6 +44,20 @@ contract TaxableToken is ERC20, Ownable {
     event ExcludeFromTax(address account, bool exclude);
 
     error TransferAmountExceedsMaxTxAmount();
+    error UnauthorizedAccount();
+
+    modifier onlyOwner() {
+        if (msg.sender != owner) {
+            revert UnauthorizedAccount();
+        }
+        _;
+    }
+
+    modifier changeExcludedFromTax(address oldAddress, address newAddress) {
+        isExcludedFromTax[oldAddress] = false;
+        isExcludedFromTax[newAddress] = true;
+        _;
+    }
 
     /// @notice Initializes the contract with initial supply, reward pool and development pool addresses.
     /// @param _totalSupply The initial total supply.
@@ -52,7 +67,9 @@ contract TaxableToken is ERC20, Ownable {
         uint256 _totalSupply,
         address _rewardPool,
         address _developmentPool
-    ) ERC20("TaxableToken", "TXB") Ownable(msg.sender) {
+    ) ERC20("TaxableToken", "TXB") {
+        owner = msg.sender;
+
         IUniswapV2Factory factory = IUniswapV2Factory(router.factory());
         address weth = router.WETH();
         address token0 = address(this) < weth ? address(this) : weth;
@@ -92,18 +109,14 @@ contract TaxableToken is ERC20, Ownable {
 
     /// @notice Changes the rewardPool address, only callable by the contract owner.
     /// @param newRewardPool The new address for the rewardPool.
-    function setRewardPool(address newRewardPool) external onlyOwner {
-        isExcludedFromTax[rewardPool] = false;
-        isExcludedFromTax[newRewardPool] = true;
+    function setRewardPool(address newRewardPool) external onlyOwner changeExcludedFromTax(rewardPool, newRewardPool) {
         rewardPool = newRewardPool;
         emit rewardPoolUpdated(newRewardPool);
     }
 
     /// @notice Changes the developmentPool address, only callable by the contract owner.
     /// @param newDevelopmentPool The new address for the developmentPool.
-    function setDevelopmentPool(address newDevelopmentPool) external onlyOwner {
-        isExcludedFromTax[developmentPool] = false;
-        isExcludedFromTax[newDevelopmentPool] = true;
+    function setDevelopmentPool(address newDevelopmentPool) external onlyOwner changeExcludedFromTax(developmentPool, newDevelopmentPool) {
         developmentPool = newDevelopmentPool;
         emit developmentPoolUpdated(newDevelopmentPool);
     }
@@ -114,6 +127,12 @@ contract TaxableToken is ERC20, Ownable {
     function excludeFromTax(address account, bool exclude) external onlyOwner {
         isExcludedFromTax[account] = exclude;
         emit ExcludeFromTax(account, exclude);
+    }
+
+    /// @notice Changes the owner address, only callable by the contract owner.
+    /// @param newOwner The address of the new owner.
+    function transferOwnership(address newOwner) external onlyOwner changeExcludedFromTax(owner, newOwner) {
+        owner = newOwner;
     }
 
     /// @notice return if a user is excluded from tax.
@@ -137,15 +156,6 @@ contract TaxableToken is ERC20, Ownable {
         return maxTxAmount;
     }
 
-    /// @notice Overrides the transferOwnership function of Owned to include tax addresses.
-    /// @param newOwner The address of the new owner.
-    function transferOwnership(address newOwner) public override {
-        isExcludedFromTax[owner()] = false;
-        isExcludedFromTax[newOwner] = true;
-        super.transferOwnership(newOwner);
-    }
-
-
     /// @notice Overrides the _update function of ERC20 to include tax and maxTxAmount logic.
     /// @param from The address of the sender.
     /// @param to The address of the recipient.
@@ -161,7 +171,7 @@ contract TaxableToken is ERC20, Ownable {
             if (!isExcludedFromTax[from] && !isExcludedFromTax[to]) {
                 if (amount > maxTxAmount)
                     revert TransferAmountExceedsMaxTxAmount();
-                    
+
                 uint256 taxAmount = (amount * taxPercentage) / 100;
                 unchecked {
                     super._update(from, to, amount - taxAmount);
