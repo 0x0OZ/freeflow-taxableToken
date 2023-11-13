@@ -66,10 +66,6 @@ contract TokenLockContract {
         lockedBalances[msg.sender] = LockInfo(amount, unlockTime);
     }
 
-    // check if new tokens are < from existing locked tokens then take that amount from the user
-    // check if the new tokens are > from the existing locked tokens then send that amount to the user
-    // if the new amount locked amount and the current locked amount are equal don't do any of the above
-
     // do the checks on lock durations that are done on the lock
     /// @notice Locks tokens for a specified duration
     /// @param newLockAmount The amount of tokens to lock
