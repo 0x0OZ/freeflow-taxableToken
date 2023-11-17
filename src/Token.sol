@@ -27,7 +27,7 @@ contract TaxableToken is ERC20 {
     address internal developmentPool;
 
     // Tax percentage on buy/sell transactions.
-    uint256 internal taxPercentage = 4;
+    uint256 internal taxPercentage;
 
     // Maximum amount for buy/sell transactions.
     uint256 internal maxTxAmount;
@@ -60,15 +60,19 @@ contract TaxableToken is ERC20 {
     }
 
     /// @notice Initializes the contract with initial supply, reward pool and development pool addresses.
+    /// @param _taxPercentage The initial tax percentage.
     /// @param _totalSupply The initial total supply.
     /// @param _rewardPool The address of the reward pool.
     /// @param _developmentPool The address of the development pool.
     constructor(
+        uint _taxPercentage,
         uint256 _totalSupply,
         address _rewardPool,
         address _developmentPool
     ) ERC20("TaxableToken", "TXB") {
         owner = msg.sender;
+
+        taxPercentage = _taxPercentage;
 
         IUniswapV2Factory factory = IUniswapV2Factory(router.factory());
         address weth = router.WETH();
@@ -109,14 +113,22 @@ contract TaxableToken is ERC20 {
 
     /// @notice Changes the rewardPool address, only callable by the contract owner.
     /// @param newRewardPool The new address for the rewardPool.
-    function setRewardPool(address newRewardPool) external onlyOwner changeExcludedFromTax(rewardPool, newRewardPool) {
+    function setRewardPool(
+        address newRewardPool
+    ) external onlyOwner changeExcludedFromTax(rewardPool, newRewardPool) {
         rewardPool = newRewardPool;
         emit rewardPoolUpdated(newRewardPool);
     }
 
     /// @notice Changes the developmentPool address, only callable by the contract owner.
     /// @param newDevelopmentPool The new address for the developmentPool.
-    function setDevelopmentPool(address newDevelopmentPool) external onlyOwner changeExcludedFromTax(developmentPool, newDevelopmentPool) {
+    function setDevelopmentPool(
+        address newDevelopmentPool
+    )
+        external
+        onlyOwner
+        changeExcludedFromTax(developmentPool, newDevelopmentPool)
+    {
         developmentPool = newDevelopmentPool;
         emit developmentPoolUpdated(newDevelopmentPool);
     }
@@ -131,7 +143,9 @@ contract TaxableToken is ERC20 {
 
     /// @notice Changes the owner address, only callable by the contract owner.
     /// @param newOwner The address of the new owner.
-    function transferOwnership(address newOwner) external onlyOwner changeExcludedFromTax(owner, newOwner) {
+    function transferOwnership(
+        address newOwner
+    ) external onlyOwner changeExcludedFromTax(owner, newOwner) {
         owner = newOwner;
     }
 
