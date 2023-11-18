@@ -7,8 +7,8 @@ pragma solidity ^0.8.21;
 // owner address and tax addresses should be excluded from tax
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
-import "@uniswap/v2-core/contracts/interfaces/IUniswapV2Factory.sol";
-import "@uniswap/v2-periphery/contracts/interfaces/IUniswapV2Router02.sol";
+import "src/interfaces/IUniswapV2Factory.sol";
+import "src/interfaces/IUniswapV2Router02.sol";
 
 contract TaxableToken is ERC20 {
     struct LockInfo {
@@ -65,7 +65,7 @@ contract TaxableToken is ERC20 {
     /// @param _rewardPool The address of the reward pool.
     /// @param _developmentPool The address of the development pool.
     constructor(
-        uint _taxPercentage,
+        uint256 _taxPercentage,
         uint256 _totalSupply,
         address _rewardPool,
         address _developmentPool

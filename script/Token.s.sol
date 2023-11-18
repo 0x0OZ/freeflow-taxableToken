@@ -6,8 +6,8 @@ import "forge-std/Script.sol";
 
 // import "./interfaces/IUniswapV2Router02.sol";
 // import "./interfaces/IUniswapV2Factory.sol";
-import "./interfaces/IUniswapV2Pair.sol";
-import "./interfaces/weth.sol";
+import "src/interfaces/IUniswapV2Pair.sol";
+import "src/interfaces/weth.sol";
 
 contract TokenScript is Script {
     TaxableToken token;
@@ -26,7 +26,7 @@ contract TokenScript is Script {
         developmentPool = address(0x11111111111);
         user = address(0x222222222222);
         vm.prank(owner);
-        token = new TaxableToken(100_000_0000, rewardPool, developmentPool);
+        token = new TaxableToken(4, 100_000_0000, rewardPool, developmentPool);
         factory = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
         router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
         weth = router.WETH();
@@ -37,11 +37,16 @@ contract TokenScript is Script {
         console.log("balance of owner", token.balanceOf(owner));
         console.log("balance of user", token.balanceOf(user));
         console.log("balance of rewardPool", token.balanceOf(rewardPool));
-        console.log("balance of developmentPool", token.balanceOf(developmentPool));
+        console.log(
+            "balance of developmentPool",
+            token.balanceOf(developmentPool)
+        );
         console.log("total supply", token.totalSupply());
         console.log("tax percentage", token.getTaxPercentage());
         console.log("max tx amount", token.getMaxTxAmount());
-        console.log("==========================================================\n");
+        console.log(
+            "==========================================================\n"
+        );
     }
 
     function buyToken(address to, uint256 amountIn) public {
@@ -53,13 +58,22 @@ contract TokenScript is Script {
         path[0] = weth;
         path[1] = address(token);
         uint256 deadline = block.timestamp + 10000000;
-        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(amountIn, amountOutMin, path, to, deadline);
-        (uint256 reserveA, uint256 reserveB,) = pair.getReserves();
+        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            amountIn,
+            amountOutMin,
+            path,
+            to,
+            deadline
+        );
+        (uint256 reserveA, uint256 reserveB, ) = pair.getReserves();
         console.log("reserves: ", reserveA, reserveB);
     }
 
     function run() public {
-        console.log("is owner excludedfrom tax?: ", token.isUserExcludedFromTax(owner));
+        console.log(
+            "is owner excludedfrom tax?: ",
+            token.isUserExcludedFromTax(owner)
+        );
         print();
         vm.startPrank(owner);
         pair = IUniswapV2Pair(factory.getPair(address(token), weth));
@@ -75,10 +89,19 @@ contract TokenScript is Script {
         uint256 amountBMin = 1e6 * 1e18;
         address to = owner;
         uint256 deadline = block.timestamp + 100000000000;
-        (uint256 reserveA, uint256 reserveB,) = pair.getReserves();
+        (uint256 reserveA, uint256 reserveB, ) = pair.getReserves();
         console.log("reserves: ", reserveA, reserveB);
-        router.addLiquidity(address(token), weth, amountADesired, amountBDesired, amountAMin, amountBMin, to, deadline);
-        (reserveA, reserveB,) = pair.getReserves();
+        router.addLiquidity(
+            address(token),
+            weth,
+            amountADesired,
+            amountBDesired,
+            amountAMin,
+            amountBMin,
+            to,
+            deadline
+        );
+        (reserveA, reserveB, ) = pair.getReserves();
         console.log("reserves: ", reserveA, reserveB);
 
         // token.setLiquidityPool(address(pair));
@@ -99,9 +122,15 @@ contract TokenScript is Script {
         console.log("SWAPPING");
         console.log("router address: %s", address(router));
 
-        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(amountIn, amountOutMin, path, to, deadline);
+        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            amountIn,
+            amountOutMin,
+            path,
+            to,
+            deadline
+        );
         console.log("SWAPPED");
-        (reserveA, reserveB,) = pair.getReserves();
+        (reserveA, reserveB, ) = pair.getReserves();
         console.log("reserves: ", reserveA, reserveB);
         amountIn = (100000 / 2) * 1e18;
         token.approve(address(router), amountIn);
@@ -110,10 +139,16 @@ contract TokenScript is Script {
         path[1] = weth;
         to = user;
         deadline = block.timestamp + 10000000;
-        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(amountIn, amountOutMin, path, to, deadline);
+        router.swapExactTokensForTokensSupportingFeeOnTransferTokens(
+            amountIn,
+            amountOutMin,
+            path,
+            to,
+            deadline
+        );
         // router.swapSin
         vm.stopPrank();
-        (reserveA, reserveB,) = pair.getReserves();
+        (reserveA, reserveB, ) = pair.getReserves();
         console.log("reserves: ", reserveA, reserveB);
         print();
     }

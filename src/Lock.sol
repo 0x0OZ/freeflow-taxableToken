@@ -14,7 +14,7 @@ interface IERC20 {
     ) external returns (bool);
 }
 
-contract TokenLockContract {
+contract Lock {
     address internal owner;
     IERC20 internal tokenContract;
 
