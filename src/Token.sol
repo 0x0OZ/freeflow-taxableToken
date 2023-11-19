@@ -27,10 +27,10 @@ contract TaxableToken is ERC20 {
     address internal developmentPool;
 
     // Tax percentage on buy/sell transactions.
-    uint256 internal taxPercentage;
+    uint32 internal taxPercentage;
 
     // Percentage of tax that goes to reward pool, remaining goes to development pool.
-    uint256 internal splitPercentage = 50;
+    uint32 internal splitPercentage;
 
     // Maximum amount for buy/sell transactions.
     uint256 internal maxTxAmount;
@@ -68,8 +68,8 @@ contract TaxableToken is ERC20 {
     /// @param _rewardPool The address of the reward pool.
     /// @param _developmentPool The address of the development pool.
     constructor(
-        uint256 _taxPercentage,
-        uint256 _splitPercentage,
+        uint32 _taxPercentage,
+        uint32 _splitPercentage,
         address _rewardPool,
         address _developmentPool
     ) ERC20("TaxableToken", "TXB") {
@@ -102,7 +102,7 @@ contract TaxableToken is ERC20 {
 
     /// @notice Changes the tax percentage, only callable by the contract owner.
     /// @param _taxPercentage The new tax percentage.
-    function setTaxPercentage(uint256 _taxPercentage) external onlyOwner {
+    function setTaxPercentage(uint32 _taxPercentage) external onlyOwner {
         taxPercentage = _taxPercentage;
         emit taxPercentageUpdated(_taxPercentage);
     }
@@ -117,7 +117,7 @@ contract TaxableToken is ERC20 {
 
     /// @notice Changes the split percentage, only callable by the contract owner.
     /// @param _splitPercentage The new split percentage.
-    function setSplitPercentage(uint256 _splitPercentage) external onlyOwner {
+    function setSplitPercentage(uint32 _splitPercentage) external onlyOwner {
         splitPercentage = _splitPercentage;
     }
 
@@ -200,6 +200,7 @@ contract TaxableToken is ERC20 {
                     taxPercentage,
                     (splitPercentage)
                 );
+                
                 uint256 taxAmount = (amount * taxPercentage_) / 100;
                 unchecked {
                     uint splitAmount = (taxAmount * splitPercentage_) / 100;

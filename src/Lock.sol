@@ -33,7 +33,7 @@ contract Lock {
     error lockDurationOutOfRange();
     error UnauthorizedAccount();
     error InvalidLockAmount();
-    error tokensStillLocked();
+    error TokensStillLocked();
     error TokensAlreadyLocked();
 
     modifier onlyOwner() {
@@ -82,6 +82,9 @@ contract Lock {
 
         LockInfo memory lockInfo = lockedBalances[msg.sender];
 
+        if (block.timestamp < lockInfo.unlockTime && lockInfo.unlockTime != 0)
+            revert TokensStillLocked();
+
         if (newLockAmount > lockInfo.amount) {
             unchecked {
                 uint transferAmount = newLockAmount - lockInfo.amount;
@@ -110,7 +113,7 @@ contract Lock {
     function withdraw() external {
         LockInfo memory lockInfo = lockedBalances[msg.sender];
 
-        if (block.timestamp < lockInfo.unlockTime) revert tokensStillLocked();
+        if (block.timestamp < lockInfo.unlockTime) revert TokensStillLocked();
 
         delete lockedBalances[msg.sender];
 

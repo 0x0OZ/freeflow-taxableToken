@@ -77,13 +77,57 @@ contract LockScript is Test {
         vm.stopPrank();
     }
 
-    function test_lockTokensTwice(uint lockAmount) public {
-        lockAmount = bound(lockAmount, 1, 1e3);
+    function test_reLockTokens(uint lockAmount) public {
+        lockAmount = bound(lockAmount, 1, 1e6);
         prepareLockTokens(user, lockAmount);
+        vm.prank(user);
         lock.lockTokens(lockAmount, 1 days);
-        lock.lockTokens(lockAmount, 1 days);
+        // unlock first
+        skip(1 days);
+        //
+        prepareLockTokens(user, lockAmount);
+        vm.prank(user);
+        lock.reLockTokens(lockAmount, 1 days);
         (uint256 lockedAmount, uint64 unlockTime) = lock.lockedBalances(user);
-        assertEq(lockedAmount, lockAmount * 2);
+        assertEq(lockedAmount, lockAmount);
         assertEq(unlockTime, uint64(block.timestamp + 1 days));
     }
+
+
+    function test_reLockTokensBeforeUnlockRevert() public{
+        uint lockAmount = 1e2;
+        console.log("time: ", block.timestamp);
+        prepareLockTokens(user, lockAmount);
+        vm.prank(user);
+        lock.lockTokens(lockAmount, 7 days);
+
+        (uint lockedAmount, uint64 unlockTime) = lock.lockedBalances(user);
+        assertEq(lockedAmount, lockAmount);
+        assertEq(unlockTime, uint64(block.timestamp + 7 days));
+        
+        prepareLockTokens(user, lockAmount);
+        skip(1 days);
+        console.log("time: ", block.timestamp);
+        vm.prank(user);
+        vm.expectRevert(Lock.TokensStillLocked.selector);
+        lock.reLockTokens(lockAmount, 7 days);
+
+    }
+    function test_reLockTokensWithDifferentAmount(uint lockAmount)public{
+        lockAmount = bound(lockAmount, 1, 1e3);
+        prepareLockTokens(user, lockAmount);
+        vm.prank(user);
+        lock.lockTokens(lockAmount, 1 days);
+        // unlock first
+        skip(1 days);
+        //
+        prepareLockTokens(user, lockAmount + 1);
+        vm.prank(user);
+        lock.reLockTokens(lockAmount + 1, 1 days);
+        (uint256 lockedAmount, uint64 unlockTime) = lock.lockedBalances(user);
+        assertEq(lockedAmount, lockAmount + 1);
+        assertEq(unlockTime, uint64(block.timestamp + 1 days));
+    }
+
+
 }
