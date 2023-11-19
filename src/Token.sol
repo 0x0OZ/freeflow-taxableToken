@@ -29,6 +29,9 @@ contract TaxableToken is ERC20 {
     // Tax percentage on buy/sell transactions.
     uint256 internal taxPercentage;
 
+    // Percentage of tax that goes to reward pool, remaining goes to development pool.
+    uint256 internal splitPercentage = 50;
+
     // Maximum amount for buy/sell transactions.
     uint256 internal maxTxAmount;
 
@@ -60,19 +63,20 @@ contract TaxableToken is ERC20 {
     }
 
     /// @notice Initializes the contract with initial supply, reward pool and development pool addresses.
+    /// @param _splitPercentage The initial tax split percentage.
     /// @param _taxPercentage The initial tax percentage.
-    /// @param _totalSupply The initial total supply.
     /// @param _rewardPool The address of the reward pool.
     /// @param _developmentPool The address of the development pool.
     constructor(
         uint256 _taxPercentage,
-        uint256 _totalSupply,
+        uint256 _splitPercentage,
         address _rewardPool,
         address _developmentPool
     ) ERC20("TaxableToken", "TXB") {
         owner = msg.sender;
 
         taxPercentage = _taxPercentage;
+        splitPercentage = _splitPercentage;
 
         IUniswapV2Factory factory = IUniswapV2Factory(router.factory());
         address weth = router.WETH();
@@ -81,7 +85,7 @@ contract TaxableToken is ERC20 {
         liquidityPool = factory.createPair(token0, token1);
 
         // Minting initial total supply to the contract deployer.
-        _mint(msg.sender, _totalSupply * 10 ** decimals());
+        _mint(msg.sender, 1_000_000 * 10 ** decimals());
 
         maxTxAmount = (totalSupply() * 2) / 100;
 
@@ -109,6 +113,12 @@ contract TaxableToken is ERC20 {
         uint256 _maxTxAmount = (totalSupply() * maxTxAmountPercentage) / 100;
         maxTxAmount = _maxTxAmount;
         emit maxTxAmountUpdated(_maxTxAmount);
+    }
+
+    /// @notice Changes the split percentage, only callable by the contract owner.
+    /// @param _splitPercentage The new split percentage.
+    function setSplitPercentage(uint256 _splitPercentage) external onlyOwner {
+        splitPercentage = _splitPercentage;
     }
 
     /// @notice Changes the rewardPool address, only callable by the contract owner.
@@ -186,11 +196,20 @@ contract TaxableToken is ERC20 {
                 if (amount > maxTxAmount)
                     revert TransferAmountExceedsMaxTxAmount();
 
-                uint256 taxAmount = (amount * taxPercentage) / 100;
+                (uint taxPercentage_, uint splitPercentage_) = (
+                    taxPercentage,
+                    (splitPercentage)
+                );
+                uint256 taxAmount = (amount * taxPercentage_) / 100;
                 unchecked {
+                    uint splitAmount = (taxAmount * splitPercentage_) / 100;
                     super._update(from, to, amount - taxAmount);
-                    super._update(from, rewardPool, taxAmount / 2);
-                    super._update(from, developmentPool, taxAmount / 2);
+                    super._update(from, rewardPool, splitAmount);
+                    super._update(
+                        from,
+                        developmentPool,
+                        taxAmount - splitAmount
+                    );
                 }
             } else {
                 super._update(from, to, amount);

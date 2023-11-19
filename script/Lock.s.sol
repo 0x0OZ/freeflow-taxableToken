@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.21;
+pragma solidity 0.8.21;
 
 import {Lock} from "../src/Lock.sol";
 import "../src/Token.sol";
@@ -42,6 +42,5 @@ contract LockScript is Script {
     function run() public {
         lockTokens(user, 1000);
         lockTokens(anotherUser, 1000);
-        
     }
 }

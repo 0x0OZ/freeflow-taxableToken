@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-pragma solidity ^0.8.18;
+pragma solidity ^0.8.21;
 
 import "../src/Token.sol";
 import "forge-std/Script.sol";
@@ -26,7 +26,7 @@ contract TokenScript is Script {
         developmentPool = address(0x11111111111);
         user = address(0x222222222222);
         vm.prank(owner);
-        token = new TaxableToken(4, 100_000_0000, rewardPool, developmentPool);
+        token = new TaxableToken(4, 50, rewardPool, developmentPool);
         factory = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
         router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
         weth = router.WETH();
