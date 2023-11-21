@@ -61,9 +61,10 @@ contract Lock {
         // assumed that the tokenContract follows the the EIP specs
         tokenContract.transferFrom(msg.sender, address(this), amount);
 
-        uint64 unlockTime = uint64(block.timestamp) + lockDuration;
-
-        lockedBalances[msg.sender] = LockInfo(amount, unlockTime);
+        lockedBalances[msg.sender] = LockInfo(
+            amount,
+            convertToGMT0(uint64(block.timestamp + lockDuration))
+        );
     }
 
     // do the checks on lock durations that are done on the lock
@@ -77,6 +78,7 @@ contract Lock {
     /// @dev If the new lock amount is greater than the current lock amount, the difference will be transferred from the user to the contract
     /// @dev If the new lock amount is less than the current lock amount, the difference will be transferred from the contract to the user
     function reLockTokens(uint newLockAmount, uint64 newLockDuration) external {
+        if (newLockAmount == 0) revert InvalidLockAmount();
         if (newLockDuration < 1 days || newLockDuration > 31 days)
             revert lockDurationOutOfRange();
 
@@ -103,7 +105,7 @@ contract Lock {
 
         lockedBalances[msg.sender] = LockInfo(
             newLockAmount,
-            uint64(block.timestamp) + newLockDuration
+            convertToGMT0(uint64(block.timestamp + newLockDuration))
         );
     }
 
@@ -141,5 +143,14 @@ contract Lock {
     /// @dev Only the owner can call this function
     function transferOwnership(address _newOwner) external onlyOwner {
         owner = _newOwner;
+    }
+
+    /// @notice Converts a timestamp to GMT-0 00:00 hour
+    /// @param timestamp The timestamp to convert
+    /// @return The converted timestamp
+    function convertToGMT0(uint64 timestamp) internal pure returns (uint64) {
+        unchecked {
+            return timestamp - (timestamp % 1 days);
+        }
     }
 }
