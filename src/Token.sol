@@ -30,7 +30,7 @@ contract TaxableToken is ERC20 {
     uint32 internal taxPercentage;
 
     // Percentage of tax that goes to reward pool, remaining goes to development pool.
-    uint32 internal splitPercentage;
+    uint32 internal rewardPoolSharesPercentage;
 
     // Maximum amount for buy/sell transactions.
     uint256 internal maxTxAmount;
@@ -45,6 +45,7 @@ contract TaxableToken is ERC20 {
     event maxTxAmountUpdated(uint256 newMaxTxAmount);
     event rewardPoolUpdated(address newRewardPool);
     event ExcludeFromTax(address account, bool exclude);
+    event TaxTransfer(address indexed from, address indexed to, uint256 amount);
 
     error TransferAmountExceedsMaxTxAmount();
     error UnauthorizedAccount();
@@ -76,7 +77,7 @@ contract TaxableToken is ERC20 {
         owner = msg.sender;
 
         taxPercentage = _taxPercentage;
-        splitPercentage = _splitPercentage;
+        rewardPoolSharesPercentage = _splitPercentage;
 
         IUniswapV2Factory factory = IUniswapV2Factory(router.factory());
         address weth = router.WETH();
@@ -117,8 +118,8 @@ contract TaxableToken is ERC20 {
 
     /// @notice Changes the split percentage, only callable by the contract owner.
     /// @param _splitPercentage The new split percentage.
-    function setSplitPercentage(uint32 _splitPercentage) external onlyOwner {
-        splitPercentage = _splitPercentage;
+    function setRewardPoolSharesPercentage(uint32 _splitPercentage) external onlyOwner {
+        rewardPoolSharesPercentage = _splitPercentage;
     }
 
     /// @notice Changes the rewardPool address, only callable by the contract owner.
@@ -168,16 +169,20 @@ contract TaxableToken is ERC20 {
         return isExcludedFromTax[account];
     }
 
-    /// @notice return the tax percentage.
-    /// @return the tax percentage.
-    function getTaxPercentage() external view returns (uint256) {
-        return taxPercentage;
-    }
-
     /// @notice return the max transaction amount
     /// @return the max transaction amount
     function getMaxTxAmount() external view returns (uint256) {
         return maxTxAmount;
+    }
+
+    /// @return the addresses of the reward, development and liquidity pools.
+    function getAddresses() external view returns (address, address, address) {
+        return (rewardPool, developmentPool, liquidityPool);
+    }
+
+    /// @return the percentages of tax and reward pool shares.
+    function getPercentages() external view returns (uint32, uint32) {
+        return (taxPercentage, rewardPoolSharesPercentage);
     }
 
     /// @notice Overrides the _update function of ERC20 to include tax and maxTxAmount logic.
@@ -198,19 +203,23 @@ contract TaxableToken is ERC20 {
 
                 (uint taxPercentage_, uint splitPercentage_) = (
                     taxPercentage,
-                    (splitPercentage)
+                    (rewardPoolSharesPercentage)
                 );
                 
                 uint256 taxAmount = (amount * taxPercentage_) / 100;
                 unchecked {
+
                     uint splitAmount = (taxAmount * splitPercentage_) / 100;
+                    uint taxForDevPool = taxAmount - splitAmount;
                     super._update(from, to, amount - taxAmount);
                     super._update(from, rewardPool, splitAmount);
                     super._update(
                         from,
                         developmentPool,
-                        taxAmount - splitAmount
+                        taxForDevPool
                     );
+                    emit TaxTransfer(from, rewardPool , splitAmount);
+                    emit TaxTransfer(from, developmentPool , taxForDevPool);
                 }
             } else {
                 super._update(from, to, amount);
