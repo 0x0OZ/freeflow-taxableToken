@@ -25,7 +25,7 @@ contract LockScript is Script {
 
     function setUp() public {
         vm.startBroadcast(deployer);
-        token = new TaxableToken(4, 50, rewardPool, developmentPool);
+        token = new TaxableToken(rewardPool, developmentPool);
         lock = new Lock(address(token));
         vm.stopBroadcast();
     }

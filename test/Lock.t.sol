@@ -25,8 +25,9 @@ contract LockScript is Test {
 
     function setUp() public {
         vm.startPrank(deployer);
-        token = new TaxableToken(4, 1e6, rewardPool, developmentPool);
+        token = new TaxableToken(rewardPool, developmentPool);
         lock = new Lock(address(token));
+        // token.setTaxPercentage(0);
         vm.stopPrank();
     }
 
@@ -208,6 +209,7 @@ contract LockScript is Test {
         vm.prank(deployer);
         lock.changeToken(newToken);
     }
+
     function test_changeTokenRevert() public {
         address newToken = address(1);
         vm.prank(user);
