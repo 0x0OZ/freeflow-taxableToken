@@ -11,7 +11,7 @@ import "@openzeppelin/contracts/access/Ownable.sol";
 import "src/interfaces/IUniswapV2Factory.sol";
 import "src/interfaces/IUniswapV2Router02.sol";
 
-contract TaxableToken is ERC20 {
+contract TaxableToken is ERC20, Ownable {
     struct LockInfo {
         uint256 amount;
         uint64 unlockTime;
@@ -56,7 +56,7 @@ contract TaxableToken is ERC20 {
     constructor(
         address _rewardPool,
         address _developmentPool
-    ) ERC20("TaxableToken", "TXB") {
+    ) ERC20("TaxableToken", "TXB") Ownable(msg.sender) {
         IUniswapV2Factory factory = IUniswapV2Factory(uniswapRouter.factory());
         weth = uniswapRouter.WETH();
         address token0 = address(this) < weth ? address(this) : weth;
