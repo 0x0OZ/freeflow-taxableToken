@@ -34,7 +34,7 @@ contract TaxableToken is ERC20, Ownable {
     address public immutable developmentPool;
 
     // Maximum amount for buy/sell transactions, 2% of total supply.
-    uint256 public immutable maxTxAmount;
+    uint256 public maxTxAmount;
 
     // conditions to swap taxed tokens for ETH
     uint public immutable swapTokensAtAmount;
@@ -87,6 +87,12 @@ contract TaxableToken is ERC20, Ownable {
 
     // to receive ETH from uniswapV2Router when swapping
     receive() external payable {}
+
+    /// @notice set max transaction amount percentage of total supply.
+    /// @param percentage The percentage of total supply to set as max transaction amount.
+    function setMaxTxAmountPercentage(uint256 percentage) external onlyOwner {
+        maxTxAmount = (totalSupply() * percentage) / 100;
+    }
 
     /// @notice return if a user is excluded from tax.
     /// @param account The address to check if excluded.
