@@ -130,14 +130,6 @@ contract TaxableToken is ERC20, Ownable {
                 unchecked {
                     super._update(from, to, amount - taxAmount);
                     super._update(from, address(this), taxAmount);
-
-                    uint taxForRewardPool = getTokensForRewPool(taxAmount);
-                    emit TaxTransfer(from, rewardPool, taxForRewardPool);
-                    emit TaxTransfer(
-                        from,
-                        developmentPool,
-                        taxAmount - taxForRewardPool
-                    );
                 }
             } else {
                 super._update(from, to, amount);
@@ -163,16 +155,20 @@ contract TaxableToken is ERC20, Ownable {
 
         unchecked {
             uint tokensForRewPool = getTokensForRewPool(tokensToSwap);
+            uint tokensForDevPool = tokensToSwap - tokensForRewPool;
 
             // we don't confirm the call to avoid reverting
 
             (bool ok, ) = payable(rewardPool).call{value: tokensForRewPool}("");
             if (ok) {
-                (ok, ) = payable(developmentPool).call{
-                    value: tokensToSwap - tokensForRewPool
-                }("");
+                (ok, ) = payable(developmentPool).call{value: tokensForDevPool}(
+                    ""
+                );
             }
             if (!ok) revert TransferTaxToPoolFailed();
+
+            emit TaxTransfer(address(this), rewardPool, tokensForRewPool);
+            emit TaxTransfer(address(this), developmentPool, tokensForDevPool);
         }
     }
 
