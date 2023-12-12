@@ -112,28 +112,27 @@ contract TaxableToken is ERC20, Ownable {
         address to,
         uint256 amount
     ) internal override {
-        if ((from != liquidityPool && to != liquidityPool)) {
-            super._update(from, to, amount);
+        bool takeTax = (from == liquidityPool || to == liquidityPool);
+        bool isExcluded = isExcludedFromTax[from] || isExcludedFromTax[to];
+        bool doSwapBack = balanceOf(address(this)) >= swapTokensAtAmount &&
+            !swapping;
 
-            if (balanceOf(address(this)) >= swapTokensAtAmount && !swapping) {
-                swapping = true;
-                emit SwapBack(balanceOf(address(this)));
-                swapBack();
-                swapping = false;
+        if (takeTax && !isExcluded) {
+            if (amount > maxTxAmount) revert TransferAmountExceedsMaxTxAmount();
+            uint256 taxAmount = (amount * taxPercentage) / 100;
+            unchecked {
+                super._update(from, to, amount - taxAmount);
+                super._update(from, address(this), taxAmount);
             }
         } else {
-            if (!isExcludedFromTax[from] && !isExcludedFromTax[to]) {
-                if (amount > maxTxAmount)
-                    revert TransferAmountExceedsMaxTxAmount();
+            super._update(from, to, amount);
+        }
 
-                uint256 taxAmount = (amount * taxPercentage) / 100;
-                unchecked {
-                    super._update(from, to, amount - taxAmount);
-                    super._update(from, address(this), taxAmount);
-                }
-            } else {
-                super._update(from, to, amount);
-            }
+        if (doSwapBack && !takeTax) {
+            swapping = true;
+            emit SwapBack(balanceOf(address(this)));
+            swapBack();
+            swapping = false;
         }
     }
 
