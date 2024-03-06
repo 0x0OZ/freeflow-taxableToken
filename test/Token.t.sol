@@ -27,8 +27,8 @@ contract TokenTest is Test {
         user = address(0x222222222222);
         vm.prank(owner);
         token = new TaxableToken(rewardPool, developmentPool);
-        factory = IUniswapV2Factory(0x5C69bEe701ef814a2B6a3EDD4B1652CB9cc5aA6f);
-        router = IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        router = IUniswapV2Router02(0x98994a9A7a2570367554589189dC9772241650f6);
+        factory = IUniswapV2Factory(0xb4A7D971D0ADea1c73198C97d7ab3f9CE4aaFA13);
         weth = router.WETH();
         WETH = WETH9(payable(weth));
 

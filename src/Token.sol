@@ -24,7 +24,7 @@ contract TaxableToken is ERC20, Ownable {
     uint32 public constant rewardPoolSharesPercentage = 3;
 
     IUniswapV2Router02 internal constant uniswapRouter =
-        IUniswapV2Router02(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
+        IUniswapV2Router02(0x98994a9A7a2570367554589189dC9772241650f6);
 
     // tax will be taken if luqidty pool is involved in the transfer
     address public immutable liquidityPool;

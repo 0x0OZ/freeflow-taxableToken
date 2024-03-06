@@ -5,15 +5,10 @@ import {Lock} from "../src/Lock.sol";
 import "../src/Token.sol";
 import "forge-std/Test.sol";
 
-import "src/interfaces/IUniswapV2Pair.sol";
-import "src/interfaces/weth.sol";
-
 contract LockScript is Test {
     TaxableToken token;
     Lock lock;
 
-    address internal constant router =
-        address(0x7a250d5630B4cF539739dF2C5dAcb4c659F2488D);
     address rewardPool = address(1337);
     address developmentPool = address(6666);
 
