@@ -7,11 +7,13 @@ pragma solidity ^0.8.21;
 // owner address and tax addresses should be excluded from tax
 
 import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
+
 import "@openzeppelin/contracts/access/Ownable.sol";
 import "src/interfaces/IUniswapV2Factory.sol";
 import "src/interfaces/IUniswapV2Router02.sol";
 
-contract TaxableToken is ERC20, Ownable {
+contract TaxableToken is ERC20Permit, Ownable {
     struct LockInfo {
         uint256 amount;
         uint64 unlockTime;
@@ -56,7 +58,7 @@ contract TaxableToken is ERC20, Ownable {
     constructor(
         address _rewardPool,
         address _developmentPool
-    ) ERC20("TaxableToken", "TXB") Ownable(msg.sender) {
+    ) ERC20("TaxableToken", "TXB") ERC20Permit("TaxableToken") Ownable(_msgSender())     {
         IUniswapV2Factory factory = IUniswapV2Factory(uniswapRouter.factory());
         weth = uniswapRouter.WETH();
         address token0 = address(this) < weth ? address(this) : weth;
@@ -67,7 +69,7 @@ contract TaxableToken is ERC20, Ownable {
 
         uint totalSupply_ = 1_000_000 * 10 ** decimals();
         // Minting initial total supply to the contract deployer.
-        _mint(msg.sender, totalSupply_);
+        _mint(_msgSender(), totalSupply_);
 
         maxTxAmount = (totalSupply_ * 2) / 100;
 
@@ -78,7 +80,7 @@ contract TaxableToken is ERC20, Ownable {
         // setting excluded addresses
         isExcludedFromTax[_rewardPool] = true;
         isExcludedFromTax[_developmentPool] = true;
-        isExcludedFromTax[msg.sender] = true;
+        isExcludedFromTax[_msgSender()] = true;
         isExcludedFromTax[address(this)] = true;
 
         swapTokensAtAmount = (totalSupply_ * 5) / 10000;
