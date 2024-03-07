@@ -10,8 +10,8 @@ import "@openzeppelin/contracts/token/ERC20/ERC20.sol";
 import "@openzeppelin/contracts/token/ERC20/extensions/ERC20Permit.sol";
 
 import "@openzeppelin/contracts/access/Ownable.sol";
-import "src/interfaces/IUniswapV2Factory.sol";
-import "src/interfaces/IUniswapV2Router02.sol";
+import "./interfaces/IUniswapV2Factory.sol";
+import "./interfaces/IUniswapV2Router02.sol";
 
 contract TaxableToken is ERC20Permit, Ownable {
     struct LockInfo {
